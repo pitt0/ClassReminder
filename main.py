@@ -11,25 +11,30 @@ from discord.ext import tasks
 bot = commands.Bot(command_prefix=">>")
 load_dotenv()
 with open('Classes.json') as f: 
-    classes = json.load(f)
+    classes: dict[str, str] = json.load(f)
+ws = openpyxl.load_workbook('Classes.xlsx')
+c = ws['Foglio 1']
 
-classes = (
-    datetime.time(8, 50),
-    datetime.time(9, 45),
-    datetime.time(11),
-    datetime.time(11, 55),
-    datetime.time(12, 50)
-)
+times = (schedule[0] for schedule in c.values if schedule[0] is not None)
 
-@tasks.loop(time=classes)
+@tasks.loop(time=times)
 async def send_link():
     channel = await bot.fetch_channel(821016664610570301)
     today = datetime.datetime.now(tz=pytz.timezone('Europe/Rome')).strftime('%A')
     now = datetime.datetime.now(tz=pytz.timezone('Europe/Rome')).strftime('%H:%M')
-    ws = openpyxl.load_workbook('Classes.xlsx')
-    c = ws['Foglio 1']
-    # Get data from Classes.xlsx
-    await channel.send()
+    if today not in c.values.__next__():
+        return
+    else:
+        day = c.values.__next__().index(today)
+    
+    for index, schedule in enumerate(c.values):
+        if schedule is None:
+            continue
+        if schedule == now:
+            link = classes[c.cell(index, day)]
+            break
+    
+    await channel.send(link)
 
 @bot.event
 async def on_message(message: discord.Message):
